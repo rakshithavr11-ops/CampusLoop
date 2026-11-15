@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const itemRequestSchema = new mongoose.Schema(
@@ -28,8 +29,19 @@ const itemRequestSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ["Pending", "Accepted", "Rejected", "Cancelled"],
+            enum: ["Pending", "Accepted", "Rejected", "Cancelled", "Completed"],
             default: "Pending"
+        },
+
+        pickupLocation: {
+            type: String,
+            default: "",
+            trim: true
+        },
+
+        pickupTime: {
+            type: Date,
+            default: null
         }
     },
     {

@@ -321,6 +321,42 @@ async function updateItemRequestStatus(requestId, status) {
     setItemLoading(false)
   }
 }
+
+async function savePickupDetails(requestId) {
+  const pickupLocation = window.prompt('Enter pickup location (e.g. College Main Gate):')
+  if (!pickupLocation || !pickupLocation.trim()) return
+
+  const pickupTime = window.prompt('Enter pickup date and time (YYYY-MM-DDTHH:MM):')
+  if (!pickupTime) return
+
+  try {
+    const data = await apiRequest(`/item-requests/${requestId}/pickup`, {
+      method: 'PUT',
+      body: JSON.stringify({ pickupLocation, pickupTime }),
+    })
+
+    setNotice(data.message || 'Pickup details saved.')
+    await loadReceivedRequests()
+  } catch (error) {
+    setNotice(error.message || 'Could not save pickup details.')
+  }
+}
+
+async function confirmItemReceived(requestId) {
+  if (!window.confirm('Have you received the item from the owner?')) return
+
+  try {
+    const data = await apiRequest(`/item-requests/${requestId}/confirm`, {
+      method: 'PUT',
+    })
+
+    setNotice(data.message || 'Item receipt confirmed.')
+    await loadMyRequests()
+  } catch (error) {
+    setNotice(error.message || 'Could not confirm receipt.')
+  }
+}
+
 // Create a marketplace item
 async function createItem(event) {
   event.preventDefault()
@@ -1151,6 +1187,30 @@ if (item === 'Notifications') loadNotifications()
         <p><strong>Listing Type:</strong> {request.item?.listingType || 'Not available'}</p>
         <p><strong>Request Message:</strong> {request.message || 'No message'}</p>
         <p><strong>Request Status:</strong> {request.status || 'Pending'}</p>
+{request.status === 'Accepted' && (
+  <>
+    <p>
+      <strong>Pickup Location:</strong>{' '}
+      {request.pickupLocation || 'Waiting for owner to provide details'}
+    </p>
+
+    <p>
+      <strong>Pickup Time:</strong>{' '}
+      {request.pickupTime
+        ? new Date(request.pickupTime).toLocaleString()
+        : 'Not scheduled yet'}
+    </p>
+
+    {request.pickupLocation && request.pickupTime && (
+      <button
+        type="button"
+        onClick={() => confirmItemReceived(request._id)}
+      >
+        Confirm Received
+      </button>
+    )}
+  </>
+)}
         <p>
           <strong>Requested On:</strong>{' '}
           {request.createdAt
@@ -1204,6 +1264,32 @@ if (item === 'Notifications') loadNotifications()
             </button>
           </>
         )}
+{request.status === 'Accepted' && (
+  <div style={{ marginTop: '12px' }}>
+    <p><strong>Pickup Details</strong></p>
+
+    <p>
+      Location: {request.pickupLocation || 'Not provided'}
+    </p>
+
+    <p>
+      Time: {request.pickupTime
+        ? new Date(request.pickupTime).toLocaleString()
+        : 'Not scheduled'}
+    </p>
+
+    <button
+      type="button"
+      onClick={() => savePickupDetails(request._id)}
+    >
+      Set / Update Pickup Details
+    </button>
+  </div>
+)}
+
+{request.status === 'Completed' && (
+  <p><strong>Handover Completed!</strong></p>
+)}
       </article>
     ))}
   </section>
@@ -1742,6 +1828,7 @@ if (item === 'Notifications') loadNotifications()
         </aside>
       </div>
     </div>
+
   )
 }
 

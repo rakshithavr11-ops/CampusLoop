@@ -218,4 +218,88 @@ router.put("/:requestId/status", authMiddleware, async (req, res) => {
     }
 });
 
+// 5. Owner sets pickup location and time
+router.put("/:requestId/pickup", authMiddleware, async (req, res) => {
+    try {
+        const { pickupLocation, pickupTime } = req.body;
+
+        const request = await ItemRequest.findById(req.params.requestId);
+
+        if (!request) {
+            return res.status(404).json({ message: "Request not found." });
+        }
+
+        if (request.owner.toString() !== req.user.id) {
+            return res.status(403).json({
+                message: "Only the item owner can set pickup details."
+            });
+        }
+
+        if (request.status !== "Accepted") {
+            return res.status(400).json({
+                message: "Pickup details can be set only for accepted requests."
+            });
+        }
+
+        if (!pickupLocation || !pickupLocation.trim() || !pickupTime ||
+            Number.isNaN(Date.parse(pickupTime))) {
+            return res.status(400).json({
+                message: "Please provide a valid pickup location and date/time."
+            });
+        }
+
+        request.pickupLocation = pickupLocation.trim();
+        request.pickupTime = new Date(pickupTime);
+
+        await request.save();
+
+        res.status(200).json({
+            message: "Pickup details saved successfully.",
+            request
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Could not save pickup details.",
+            error: error.message
+        });
+    }
+});
+
+// 6. Requester confirms receipt of item
+router.put("/:requestId/confirm", authMiddleware, async (req, res) => {
+    try {
+        const request = await ItemRequest.findById(req.params.requestId);
+
+        if (!request) {
+            return res.status(404).json({ message: "Request not found." });
+        }
+
+        if (request.requester.toString() !== req.user.id) {
+            return res.status(403).json({
+                message: "Only the requester can confirm receipt."
+            });
+        }
+
+        if (request.status !== "Accepted" ||
+            !request.pickupLocation || !request.pickupTime) {
+            return res.status(400).json({
+                message: "Pickup details must be available before confirmation."
+            });
+        }
+
+        request.status = "Completed";
+        await request.save();
+
+        res.status(200).json({
+            message: "Item receipt confirmed. Request completed!",
+            request
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Could not confirm receipt.",
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
